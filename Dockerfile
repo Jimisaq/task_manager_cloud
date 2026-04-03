@@ -9,4 +9,4 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=builder /app/build/libs/*.jar app.jar
 
-ENTRYPOINT ["java", "-Dserver.port=8080", "-jar", "app.jar"]
+CMD ["java", "-jar", "app.jar"]
