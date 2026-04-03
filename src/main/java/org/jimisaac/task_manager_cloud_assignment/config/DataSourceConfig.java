@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import javax.sql.DataSource;
@@ -35,7 +34,22 @@ public class DataSourceConfig {
         try {
             FileSystemResource envFile = new FileSystemResource(".env");
             if (envFile.exists()) {
-                envProps = PropertiesLoaderUtils.loadProperties(envFile);
+                // Load .env file manually since it's not standard properties format
+                java.util.List<String> lines = java.nio.file.Files.readAllLines(envFile.getFile().toPath());
+                for (String line : lines) {
+                    line = line.trim();
+                    if (line.isEmpty() || line.startsWith("#")) continue;
+                    int equalsIndex = line.indexOf('=');
+                    if (equalsIndex > 0) {
+                        String key = line.substring(0, equalsIndex).trim();
+                        String value = line.substring(equalsIndex + 1).trim();
+                        // Remove quotes if present
+                        if (value.startsWith("\"") && value.endsWith("\"")) {
+                            value = value.substring(1, value.length() - 1);
+                        }
+                        envProps.setProperty(key, value);
+                    }
+                }
                 logger.info("Loaded .env file with {} properties", envProps.size());
             } else {
                 logger.info(".env file not found");
@@ -53,8 +67,12 @@ public class DataSourceConfig {
 
         if (databaseUrl != null && !databaseUrl.isEmpty()) {
             logger.info("Using Railway DATABASE_URL configuration");
+            logger.info("Full DATABASE_URL: {}", databaseUrl);
             // Production: Parse Railway DATABASE_URL
             URI dbUri = new URI(databaseUrl);
+
+            logger.info("URI components - Scheme: {}, UserInfo: {}, Host: {}, Port: {}, Path: {}",
+                       dbUri.getScheme(), dbUri.getUserInfo(), dbUri.getHost(), dbUri.getPort(), dbUri.getPath());
 
             if (dbUri.getUserInfo() != null) {
                 String username = dbUri.getUserInfo().split(":")[0];
@@ -71,7 +89,10 @@ public class DataSourceConfig {
 
                 return dataSource;
             } else {
-                logger.warn("DATABASE_URL found but userInfo is null: {}", databaseUrl);
+                logger.error("DATABASE_URL found but userInfo is null! This indicates Railway DATABASE_URL format is unexpected.");
+                logger.error("Expected format: postgresql://username:password@host:port/database");
+                logger.error("Actual DATABASE_URL: {}", databaseUrl);
+                throw new RuntimeException("Invalid DATABASE_URL format from Railway - no user credentials found");
             }
         }
 
