@@ -23,6 +23,7 @@ public class TaskController {
 
     @PostMapping
     public ResponseEntity<TaskResponse> createTask(@Valid @RequestBody TaskRequest request) {
+        logger.info("======== POST /api/tasks ENDPOINT HIT ========");
         logger.info("POST /api/tasks called with request: {}", request);
         TaskResponse response = taskService.createTask(request);
         logger.info("Task created successfully with ID: {}", response.getId());
@@ -55,5 +56,11 @@ public class TaskController {
         logger.info("DELETE /api/tasks/{} called", id);
         taskService.deleteTask(id);
         return ResponseEntity.ok("Task deleted successfully");
+    }
+
+    @RequestMapping(method = RequestMethod.OPTIONS)
+    public ResponseEntity<?> handleOptions() {
+        logger.info("OPTIONS /api/tasks called - CORS preflight request");
+        return ResponseEntity.ok().build();
     }
 }
